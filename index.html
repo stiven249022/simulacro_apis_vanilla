@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>CRUD con Archivos</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet" />
+  <style>
+    body {
+      background-color: #e6f0f8;
+      background-image: url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Ccircle fill='%23cce4f6' cx='50' cy='50' r='50'/%3E%3C/svg%3E");
+      background-repeat: repeat;
+      background-size: 120px 120px;
+      background-attachment: fixed;
+    }
+    .file-cell {
+      max-width: 200px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .file-btn {
+      cursor: pointer;
+      color: #3b82f6;
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-8">
+  <div class="bg-white bg-opacity-95 rounded-lg p-6 w-full max-w-4xl shadow-lg space-y-6">
+    <h1 class="text-3xl font-bold text-center text-gray-800">CRUD con Archivos</h1>
+
+    <!-- Formulario CRUD -->
+    <div class="grid sm:grid-cols-4 gap-3">
+      <input id="nombre" type="text" placeholder="Nombre" class="w-full p-2 rounded border" />
+      <input id="edad" type="number" placeholder="Edad" class="w-full p-2 rounded border" />
+      <input type="file" id="nuevo-archivo" class="hidden" accept="image/*,.pdf" />
+      <button onclick="agregarArchivo()" class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded flex items-center justify-center">
+        <span id="nombre-archivo">Seleccionar archivo</span>
+      </button>
+    </div>
+    <button onclick="insertar()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded w-full">Guardar Registro</button>
+
+    <!-- Tabla -->
+    <div class="overflow-auto max-h-72 border rounded-lg">
+      <table class="table-auto w-full text-left">
+        <thead class="bg-blue-100 text-blue-800 sticky top-0 z-10">
+          <tr>
+            <th class="px-4 py-2">ID</th>
+            <th class="px-4 py-2">Nombre</th>
+            <th class="px-4 py-2">Edad</th>
+            <th class="px-4 py-2">Archivo</th>
+            <th class="px-4 py-2">Acciones</th>
+          </tr>
+        </thead>
+        <tbody id="tabla-datos" class="text-sm text-gray-800 bg-white"></tbody>
+      </table>
+    </div>
+
+    <!-- Vista previa -->
+    <div class="bg-gray-100 p-4 rounded-md shadow-inner">
+      <h2 class="text-lg font-semibold mb-2">Vista previa</h2>
+      <div id="preview" class="border p-3 rounded bg-white shadow-sm min-h-[100px] flex items-center justify-center">
+        <p class="text-gray-500 text-sm">Seleccione un archivo para previsualizar</p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let datos = JSON.parse(localStorage.getItem("personas")) || [];
+    let contadorId = parseInt(localStorage.getItem("contadorId")) || 1;
+    let archivoActual = null;
+
+    function guardarDatos() {
+      localStorage.setItem("personas", JSON.stringify(datos));
+      localStorage.setItem("contadorId", contadorId);
+    }
+
+    function agregarArchivo() {
+      document.getElementById('nuevo-archivo').click();
+    }
+
+    // Manejar selección de archivo para nuevo registro
+    document.getElementById('nuevo-archivo').addEventListener('change', function(e) {
+      const archivo = e.target.files[0];
+      if (!archivo) return;
+      
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        archivoActual = {
+          nombre: archivo.name,
+          tipo: archivo.type,
+          datos: e.target.result
+        };
+        document.getElementById('nombre-archivo').textContent = archivo.name;
+        mostrarVistaPrevia(archivoActual.datos, archivoActual.tipo);
+      };
+      reader.readAsDataURL(archivo);
+    });
+
+    function insertar() {
+      const nombre = document.getElementById("nombre").value.trim();
+      const edad = parseInt(document.getElementById("edad").value.trim());
+      if (!nombre || isNaN(edad)) return alert("Completa todos los campos");
+
+      const nuevoRegistro = {
+        id: contadorId++,
+        nombre,
+        edad,
+        archivo: null
+      };
+
+      if (archivoActual) {
+        nuevoRegistro.archivo = {
+          nombre: archivoActual.nombre,
+          tipo: archivoActual.tipo,
+          datos: archivoActual.datos
+        };
+      }
+
+      datos.push(nuevoRegistro);
+      guardarDatos();
+      
+      // Limpiar formulario
+      document.getElementById("nombre").value = "";
+      document.getElementById("edad").value = "";
+      document.getElementById('nombre-archivo').textContent = "Seleccionar archivo";
+      archivoActual = null;
+      document.getElementById('preview').innerHTML = '<p class="text-gray-500 text-sm">Seleccione un archivo para previsualizar</p>';
+      
+      cargarDatos();
+    }
+
+    function cargarDatos() {
+      const tabla = document.getElementById("tabla-datos");
+      tabla.innerHTML = "";
+      
+      datos.forEach(registro => {
+        const tieneArchivo = registro.archivo !== null;
+        const nombreArchivo = tieneArchivo ? registro.archivo.nombre : "Sin archivo";
+        
+        tabla.innerHTML += `
+          <tr>
+            <td class="border px-2 py-1">${registro.id}</td>
+            <td class="border px-2 py-1"><input id="nombre-${registro.id}" value="${registro.nombre}" class="w-full" /></td>
+            <td class="border px-2 py-1"><input id="edad-${registro.id}" value="${registro.edad}" class="w-full" /></td>
+            <td class="border px-2 py-1 file-cell">
+              <input type="file" id="archivo-input-${registro.id}" class="hidden" accept="image/*,.pdf" />
+              <div class="flex items-center">
+                <span class="file-btn" onclick="document.getElementById('archivo-input-${registro.id}').click()" title="${nombreArchivo}">
+                  ${nombreArchivo}
+                </span>
+                ${tieneArchivo ? 
+                  `<button onclick="verArchivo(${registro.id})" class="ml-2 text-blue-600">👁️</button>` : 
+                  ''}
+              </div>
+            </td>
+            <td class="border px-2 py-1">
+              <button onclick="actualizar(${registro.id})" class="bg-yellow-400 px-2 py-1 rounded">Actualizar</button>
+              <button onclick="eliminar(${registro.id})" class="bg-red-500 text-white px-2 py-1 rounded ml-1">Eliminar</button>
+            </td>
+          </tr>
+        `;
+
+        // Configurar el input de archivo para esta fila
+        document.getElementById(`archivo-input-${registro.id}`).addEventListener('change', function(e) {
+          const archivo = e.target.files[0];
+          if (!archivo) return;
+          
+          const reader = new FileReader();
+          reader.onload = function(e) {
+            const index = datos.findIndex(r => r.id === registro.id);
+            if (index !== -1) {
+              datos[index].archivo = {
+                nombre: archivo.name,
+                tipo: archivo.type,
+                datos: e.target.result
+              };
+              guardarDatos();
+              cargarDatos();
+              mostrarVistaPrevia(e.target.result, archivo.type);
+            }
+          };
+          reader.readAsDataURL(archivo);
+        });
+      });
+    }
+
+    function verArchivo(id) {
+      const registro = datos.find(r => r.id === id);
+      if (registro && registro.archivo) {
+        mostrarVistaPrevia(registro.archivo.datos, registro.archivo.tipo);
+      }
+    }
+
+    function mostrarVistaPrevia(dataUrl, tipo) {
+      const preview = document.getElementById("preview");
+      preview.innerHTML = "";
+      
+      if (tipo.startsWith("image/")) {
+        preview.innerHTML = `<img src="${dataUrl}" class="max-w-full h-auto rounded" alt="Vista previa">`;
+      } else if (tipo === "application/pdf") {
+        preview.innerHTML = `
+          <div class="w-full">
+            <iframe src="${dataUrl}" class="w-full h-72 border rounded"></iframe>
+            <a href="${dataUrl}" download class="block mt-2 text-blue-600 underline">Descargar PDF</a>
+          </div>
+        `;
+      } else {
+        preview.innerHTML = `<p class="text-gray-500">Vista previa no disponible</p>`;
+      }
+    }
+
+    function actualizar(id) {
+      const nuevoNombre = document.getElementById(`nombre-${id}`).value.trim();
+      const nuevaEdad = parseInt(document.getElementById(`edad-${id}`).value.trim());
+      
+      if (!nuevoNombre || isNaN(nuevaEdad)) {
+        return alert("Nombre y edad son requeridos");
+      }
+      
+      const index = datos.findIndex(r => r.id === id);
+      if (index !== -1) {
+        datos[index].nombre = nuevoNombre;
+        datos[index].edad = nuevaEdad;
+        guardarDatos();
+        alert("Registro actualizado");
+      }
+    }
+
+    function eliminar(id) {
+      if (confirm("¿Estás seguro de eliminar este registro?")) {
+        datos = datos.filter(r => r.id !== id);
+        guardarDatos();
+        cargarDatos();
+      }
+    }
+
+    // Cargar datos al iniciar
+    window.onload = cargarDatos;
+  </script>
+</body>
+</html>
